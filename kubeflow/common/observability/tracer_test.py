@@ -1,4 +1,5 @@
 from kubeflow.common.observability.config import ENABLE_OBSERVABILITY, get_tracer
+from kubeflow.common.observability.otel_tracer import OTelTracer
 from kubeflow.common.observability.tracer import BaseSpan, NoOpSpan, NoOpTracer
 
 
@@ -33,3 +34,9 @@ def test_noop_span_does_not_swallow_exceptions() -> None:
         pass
     else:
         raise AssertionError("NoOpSpan must not suppress exceptions")
+    
+def test_otel_tracer_returns_span_adapter() -> None:
+    tracer = OTelTracer()
+
+    span = tracer.start_span("trainer.train")
+    assert span.__class__.__name__ == "OTelSpan"
