@@ -16,7 +16,7 @@
 Unit tests for TrainerClient backend selection.
 """
 
-from unittest.mock import Mock, patch
+from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
@@ -70,3 +70,57 @@ def test_backend_selection(test_case):
         client = TrainerClient(backend_config=test_case["backend_config"])
         backend_name = client.backend.__class__.__name__
         assert backend_name == test_case["expected_backend"]
+
+def test_train_wraps_backend_call_in_span() -> None:
+    mock_backend = Mock()
+    mock_backend.train.return_value = "job-1"
+    mock_span = MagicMock()
+    mock_span.__enter__.return_value = mock_span
+    mock_span.__exit__.return_value = False
+
+    mock_tracer = Mock()
+    mock_tracer.start_span.return_value = mock_span
+
+    client = TrainerClient(backend_config=LocalProcessBackendConfig())
+    client.backend = mock_backend
+
+    with patch("kubeflow.trainer.api.trainer_client.get_tracer", return_value=mock_tracer):
+        result = client.train(runtime="test-runtime")
+
+    assert result == "job-1"
+    mock_tracer.start_span.assert_called_once_with("trainer.train")
+    mock_backend.train.assert_called_once_with(
+        runtime="test-runtime",
+        initializer=None,
+        trainer=None,
+        options=None,
+    )
+    mock_span.__enter__.assert_called_once()
+    mock_span.__exit__.assert_called_once()
+
+def test_train_propagates_backend_exceptions() -> None:
+    mock_backend = Mock()
+    mock_backend.train.side_effect = RuntimeError("backend failure")
+    mock_span = MagicMock()
+    mock_span.__enter__.return_value = mock_span
+    mock_span.__exit__.return_value = False
+
+    mock_tracer = Mock()
+    mock_tracer.start_span.return_value = mock_span
+
+    client = TrainerClient(backend_config=LocalProcessBackendConfig())
+    client.backend = mock_backend
+
+    with patch("kubeflow.trainer.api.trainer_client.get_tracer", return_value=mock_tracer):
+        with pytest.raises(RuntimeError, match="backend failure"):
+            client.train()
+
+    mock_tracer.start_span.assert_called_once_with("trainer.train")
+    mock_backend.train.assert_called_once_with(
+        runtime=None,
+        initializer=None,
+        trainer=None,
+        options=None,
+    )
+    mock_span.__enter__.assert_called_once()
+    mock_span.__exit__.assert_called_once()

@@ -26,6 +26,8 @@ from kubeflow.trainer.backends.localprocess.backend import (
 from kubeflow.trainer.constants import constants
 from kubeflow.trainer.types import types
 
+from kubeflow.common.observability import get_tracer
+
 logger = logging.getLogger(__name__)
 
 
@@ -141,12 +143,14 @@ class TrainerClient:
             TimeoutError: Timeout to create TrainJobs.
             RuntimeError: Failed to create TrainJobs.
         """
-        return self.backend.train(
-            runtime=runtime,
-            initializer=initializer,
-            trainer=trainer,
-            options=options,
-        )
+        tracer = get_tracer()
+        with tracer.start_span("trainer.train"):
+            return self.backend.train(
+                runtime=runtime,
+                initializer=initializer,
+                trainer=trainer,
+                options=options,
+            )
 
     def list_jobs(self, runtime: types.Runtime | None = None) -> list[types.TrainJob]:
         """List of the created TrainJobs. If a runtime is specified, only TrainJobs associated with
