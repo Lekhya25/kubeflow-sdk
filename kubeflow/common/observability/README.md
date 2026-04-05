@@ -72,12 +72,12 @@ Span name used:
 
 Run the demo without tracing:
 
-    python observability_demo.py
+    python examples/observability_demo.py
 
 Run the demo with tracing enabled in PowerShell:
 
     $env:KUBEFLOW_ENABLE_OBSERVABILITY='true'
-    python observability_demo.py
+    python examples/observability_demo.py
     Remove-Item Env:\KUBEFLOW_ENABLE_OBSERVABILITY
 
 Expected result:
